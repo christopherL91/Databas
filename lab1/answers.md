@@ -24,20 +24,20 @@
 
     ```sql
     SELECT mountain,continent, height as meters, height*3.2084 as feet
-    FROM (
-    SELECT mountain, continent, height, RANK() OVER (PARTITION BY sub.continent ORDER BY height DESC) as ranking
-    FROM (
-    SELECT DISTINCT mountain.name as mountain, mountain.height, continent.name AS continent
-    FROM encompasses
-      INNER JOIN continent
-        ON encompasses.continent = continent.name
-      INNER JOIN geo_mountain
-        ON encompasses.country = geo_mountain.country
-      INNER JOIN mountain
-        ON geo_mountain.mountain = mountain.name
-    ) as sub
-    ) as ranked
-    WHERE ranked.ranking <=2
+        FROM (
+            SELECT mountain, continent, height, RANK() OVER (PARTITION BY sub.continent ORDER BY height DESC) as ranking
+            FROM (
+            SELECT DISTINCT mountain.name as mountain, mountain.height, continent.name AS continent
+                FROM encompasses
+                  INNER JOIN continent
+                    ON encompasses.continent = continent.name
+                  INNER JOIN geo_mountain
+                    ON encompasses.country = geo_mountain.country
+                  INNER JOIN mountain
+                    ON geo_mountain.mountain = mountain.name
+                ) as sub
+            ) as ranked
+        WHERE ranked.ranking <=2
     ```
 
 4.  Show the country name and ratio of border length to number of neighboring countries in descending order.
@@ -67,42 +67,47 @@
     ```sql
     SELECT name,ROUND(population),year
     FROM (
-    SELECT
-    country.name,
-    country.population,
-    EXTRACT(ISOYEAR FROM timestamp 'now') AS year
-    FROM population
-    INNER JOIN country ON population.country = country.code
+        SELECT
+        -- now
+        country.name,
+        country.population,
+        EXTRACT(ISOYEAR FROM timestamp 'now') AS year
+        FROM population
+        INNER JOIN country ON population.country = country.code
     UNION ALL
-    SELECT
-    country.name,
-    country.population*POWER(1+COALESCE(population.population_growth,0)/100,10) as population,
-    EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '10 years') AS year
-    FROM population
-    INNER JOIN country ON population.country = country.code
+        -- 10 years later
+        SELECT
+        country.name,
+        country.population*POWER(1+COALESCE(population.population_growth,0)/100,10) as population,
+        EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '10 years') AS year
+        FROM population
+        INNER JOIN country ON population.country = country.code
     UNION ALL
-    SELECT
-    country.name,
-    country.population*POWER(1+COALESCE(population.population_growth,0)/100,25) as population,
-    EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '25 years') AS year
-    FROM population
-    INNER JOIN country ON population.country = country.code
+        -- 25 years later
+        SELECT
+        country.name,
+        country.population*POWER(1+COALESCE(population.population_growth,0)/100,25) as population,
+        EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '25 years') AS year
+        FROM population
+        INNER JOIN country ON population.country = country.code
     UNION ALL
-    SELECT
-    country.name,
-    country.population*POWER(1+COALESCE(population.population_growth,0)/100,50) as population,
-    EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '50 years') AS year
-    FROM population
-    INNER JOIN country ON population.country = country.code
+        -- 50 years later
+        SELECT
+        country.name,
+        country.population*POWER(1+COALESCE(population.population_growth,0)/100,50) as population,
+        EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '50 years') AS year
+        FROM population
+        INNER JOIN country ON population.country = country.code
     UNION ALL
-    SELECT
-    country.name,
-    country.population*POWER(1+COALESCE(population.population_growth,0)/100,100) as population,
-    EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '100 years') AS year
-    FROM population
-    INNER JOIN country ON population.country = country.code
-    ) as sub
-    ORDER BY name,year
+        -- 100 years later
+        SELECT
+        country.name,
+        country.population*POWER(1+COALESCE(population.population_growth,0)/100,100) as population,
+        EXTRACT(ISOYEAR FROM timestamp 'now' + INTERVAL '100 years') AS year
+        FROM population
+        INNER JOIN country ON population.country = country.code
+        ) as sub
+        ORDER BY name,year
     ```
 
 6.  Names of all non-NATO countries that border a NATO country?
@@ -110,18 +115,21 @@
     ```sql
     SELECT country.name
     FROM
-    (
-    SELECT country1 as country
-    FROM borders
-    WHERE country2 IN (SELECT country from ismember where organization='NATO')
-    AND country1 NOT IN (SELECT country from ismember where organization='NATO')
+        (
+        -- left country => right country
+        SELECT country1 as country
+        FROM borders
+        WHERE country2 IN (SELECT country from ismember where organization='NATO')
+        AND country1 NOT IN (SELECT country from ismember where organization='NATO')
     UNION
-    SELECT country2 as country
-    FROM borders
-    WHERE country1 IN (SELECT country from ismember where organization='NATO')
-    AND country2 NOT IN (SELECT country from ismember where organization='NATO')
-    ) as c
-    INNER JOIN country ON c.country = country.code
+        -- right country => left country
+        SELECT country2 as country
+        FROM borders
+        WHERE country1 IN (SELECT country from ismember where organization='NATO')
+        AND country2 NOT IN (SELECT country from ismember where organization='NATO')
+        ) as c
+        -- get country name
+        INNER JOIN country ON c.country = country.code
     ```
 
 7.  Give all countries that can be reached overland from Mexico. Thus Canada is in answer, but Sweden is not. Hint, use recursion.
