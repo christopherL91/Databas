@@ -135,18 +135,57 @@
 7.  Give all countries that can be reached overland from Mexico. Thus Canada is in answer, but Sweden is not. Hint, use recursion.
 
     ```sql
-
+    WITH RECURSIVE border_temp(country)
+    AS (
+        VALUES('MEX')
+        UNION
+        SELECT CASE
+        WHEN country1 = border_temp.country THEN country2
+        WHEN country2 = border_temp.country THEN country1
+        END
+    FROM border_temp,borders
+    WHERE country1 = border_temp.country
+    OR country2 = border_temp.country
+)
+SELECT country.name FROM country
+INNER JOIN
+    border_temp
+        ON country.code=border_temp.country
     ```
 
 8.  Create a view EightThousanders(name,mountains,height,coordinates) which
 includes the mountains over or equal to the height of 8000 meters. Query for the countries including EightThousanders. Try to avoid materializing the whole Mountain relation. Verify via EXPLAIN ANALYSE.
 
     ```sql
-
+    CREATE VIEW EightThousanders
+    AS
+    SELECT * FROM mountain
+    WHERE height >= 8000
     ```
 
 9.  Write rules to enable updates to EightThousanders to be reflected back to Mountain. For example be able to rectify the injustice of Everest being taller than K2!
 
     ```sql
+CREATE RULE eight_update AS ON UPDATE TO EightThousanders
+DO INSTEAD
+UPDATE mountain
+SET
+    height = NEW.height,
+    mountains = NEW.mountains,
+    coordinates = NEW.coordinates,
+    type = NEW.type
+WHERE name = NEW.name
+AND NEW.height >= 8000
+AND OLD.height >= 8000
 
+CREATE RULE eight_insert AS on INSERT TO EightThousanders
+DO INSTEAD
+INSERT INTO mountain(name,mountains,height,type,coordinates)
+    VALUES(NEW.name,NEW.mountains,NEW.height,NEW.type,NEW.coordinates)
+
+CREATE RULE eight_delete AS ON DELETE TO EightThousanders
+DO INSTEAD
+DELETE FROM mountain
+WHERE
+    name = NEW.name
     ```
